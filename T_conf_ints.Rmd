@@ -1,0 +1,1139 @@
+---
+title: "Statistical Inference Week 3 Class Notes"
+author: "Yigit Ozan Berk"
+date: "6/18/2019"
+output: html_document
+---
+
+# Lectures
+https://github.com/DataScienceSpecialization/courses/
+
+- T confidence intervals
+- T confidence intervals example
+- Independent group T intervals
+- A note on unequal variance
+
+Further reading on p values
+statistical evidence: a likelihood paradigm - by richard royall
+toward evidence-based medical statistics. 1:the p value fallcy - by steve goodman
+the earth is round(p <.05) - by cohen
+
+
+
+
+# T confidence intervals
+
+T interval is for small sample sizes.
+
+If in doubt, use T interval, because as the sample size increases, T interval will become more and more like the Z interval(all distributions in previous lectures) anyway.
+
+T distribution was invented by William Gosset(under the pseudonym 'student')
+
+T distribution has only one parameter = degrees of freedom.
+## T distribution works well whenever the distribution of the data is roughly symmetric and mound shaped
+
+paired observations are often analyzed using the t interval by taking differences
+
+t interval converges to the same interval as the CLT yielded.
+
+for skewed distributions, the spirit of the t interval assumptions are violated
+- you can use the log scale, which often take care of the skewness of the data, or you can use other procedures. for example creating bootstrap conficdence intervals
+
+for highly discrete data, other distributions are available
+
+
+# Example - sleep data
+
+```{r}
+data(sleep)
+head(sleep)
+#extra hours slept, group ID, and subject ID
+```
+
+**check out the rmarkdown file for the nice plot here**
+
+```{r}
+#first 10 measurements
+g1 <- sleep$extra[1:10]
+g2 <- sleep$extra[11:20]
+difference <- g2 - g1
+mn <- mean(difference)
+s <- sd(difference)
+n <- 10
+
+mn + c(-1, 1)*qt(.975, n-1)*s/sqrt(n)
+#similarly written in different forms as follows:
+
+```
+
+```{r}
+t.test(difference)
+
+```
+
+
+```{r}
+t.test(g2, g1, paired = TRUE)
+
+```
+
+```{r}
+t.test(extra ~ I(relevel(group, 2)), paired = TRUE, data = sleep)
+#outcome extra is a function of the group, where paired equals true, evaluated from the data sleep
+```
+
+
+# Independent group t confidence intervals
+
+A-B testing or randomized trial, test group and placebo group sistemi demek.
+
+done in order to balance unobserved co-variates that may contaminate results
+
+we can't use the paired t test because the groups are independent.
+
+```{r}
+#mistakenly treating the sleep data as group
+
+n1 <- length(g1)
+n2 <- length(g2)
+sp <- sqrt(((n1-1)* sd(g1)^2 + (n2 - 1)*sd(g2)^2) / (n1 + n2 - 2))
+md <- mean(g2) - mean(g1)
+semd <- sp*sqrt(1/n1 + 1/n2)
+rbind(
+        md + c(-1 , 1) * qt(.975, n1+n2 - 2)*semd,
+        t.test(g2, g1, paired = FALSE, var.equal= TRUE)$conf,
+        #for this to work, the dataset needs to have only two levels.
+        t.test(g2, g1, paired = TRUE)$conf
+)
+
+```
+
+very different interval. if you take pairing into account... look at the graph in the lecture. A lot of variance is explained by the inter-subject variability.
+
+## Chickwiehgt data in R
+
+```{r}
+library(datasets)
+data(ChickWeight)
+library(reshape2)
+#define weight gain or loss
+wideCW <- dcast(ChickWeight, Diet + Chick ~ Time, value.var = "weight")
+names(wideCW)[-(1:2)] <- paste("time", names(wideCW)[-(1:2)], sep = "")
+library(dplyr)
+wideCW <- mutate(wideCW,
+                 gain = time21 - time0)
+```
+
+look at lecture plot
+
+violin plot looks nice
+
+```{r}
+wideCW14 <- subset(wideCW, Diet %in% c(1,4))
+rbind(
+        t.test(gain ~ Diet, paired = FALSE, var.equal = TRUE, data = wideCW14)$conf,
+        t.test(gain ~ Diet, paired = FALSE, var.equal = FALSE, data = wideCW14)$conf
+)
+
+```
+
+both intervals are in negative, suggesting, there is less weight gain in diet 1 compared to diet 4
+
+
+the confidence interval changes wether the variances are equal or unequal
+
+
+# a note on unequal variance
+
+> sx <- 15.34
+> sy <- 18.23
+> df <- ((sx^2/8+sy^2/21)^2)/((sx^2/8)/7+(sy^2/21)/20)
+> df <- ((sx^2/8+sy^2/21)^2)/((sx^2/8)^2/7+(sy^2/21)^2/20)
+
+instead of using this stuff, just setting var.equal = FALSE does the trick.
+
+## Comparing other kinds of data
+
+for binomial data, there's lots of ways to compare two groups
+- relative risk, risk difference, odds ratio
+- Chi-squared tests, normal approximations, exact tests.
+
+
+------------
+# additional class from Mathematical Biostatistics bootcamp 
+## conditional probabilities and densities
+
+```{r}
+install.packages("rgl")
+install.packages("mvtnorm")
+#you have to load XQuartz
+
+library(rgl)
+library(mvtnorm)
+sigma <- matrix(c(8, .25 * 8, .25 *8, 8 ), 2, 2)
+xvals <- seq(-10, 10, length = 100)
+yvals <- seq(-10, 10, length = 100)
+zvals <- apply(expand.grid(xvals, yvals), 1,
+               function(w) dmwnorm(w, mean= c(0, 0), sigma = sigma))
+persp3d(x = xvals, y = yvals, z = zvals, col = "lightblue")
+planes3d(0, 1, 0, -5, col = grey(.8))
+```
+
+
+# Hypothesis Testing
+
+```{r}
+library(UsingR)
+data(father.son)
+t.test(father.son$sheight - father.son$fheight)
+```
+
+or add two vectors with parameter paired = TRUE
+
+we reject the null hypothesis : wether the population of son's height was equivalent to the population mean of father's heights.
+
+# Two group testing
+
+```{r}
+library(datasets)
+data(ChickWeight)
+library(reshape2)
+#define weight gain or loss
+wideCW <- dcast(ChickWeight, Diet + Chick ~ Time, value.var = "weight")
+names(wideCW)[-(1:2)] <- paste("time", names(wideCW)[-(1:2)], sep = "")
+library(dplyr)
+wideCW <- mutate(wideCW,
+                 gain = time21 - time0)
+
+
+wideCW14 <- subset(wideCW, Diet %in% c(1, 4))
+t.test(gain ~ Diet, paired = FALSE, var.equal = TRUE,
+       data = wideCW14)
+
+
+```
+
+*whenever you're doing two groups, unless you specify a hypothesized difference in the means, it's going to assume that your interested in testing whether the means are equal under the null hypothesis or different under the alternative.*
+
+t statistic : *how many estimated standard errors* our difference in means is from the hypothesized mean. the estimate, the difference in the average weight gain between the two diets. 
+
+# P values
+
+idea : suppose nothing is going on - how unusual is it to see the estimate we got if the null hypothesis is true?
+
+1 - define hypothetical distribution of data summary 
+2 - calculate the test statistic(how many standard deviations away from the mean)
+3 - compare the two values
+
+the p-value is the probability under the null hypothesis of obtaining evidence as extreme or more extreme than that obtained
+
+if the p-value is small, then either H0 is true and we have observed a rare event or H0 is false
+
+
+"attained significance level"
+
+for the two sided hypothesis test, double the smaller of the two one sided hypothesis test Pvalues. then you have to double the P values because symmetrically the other side of the bell.
+
+
+
+```{r}
+pbinom(6, size = 8, prob = .5, lower.tail = FALSE)
+```
+
+the probability of being 7 or larger would be one one-sided p value
+the probability of being 7 or smaller would be the other one-sided p-value
+
+you take those two one-sided p values, you take the smaller one, and double it
+
+this way you get two sided p-values for exact binomial situations
+
+```{r}
+pbinom(6, size = 8, prob = .5)
+```
+
+double the smaller one
+
+```{r}
+2 * pbinom(6, size = 8, prob = .5, lower.tail = FALSE)
+```
+
+under H0 : lambda = 0.05 so that lambda100 = 5
+consider Ha : lambda > 0.05
+
+```{r}
+ppois(9, 5, lower.tail = FALSE)
+```
+
+this is the probability of obtaining 10 or more infections if, in fact, the true rate of infections we've should've seen on a 100 person days at risk is 5. 
+
+it turns out that's a relatively low probability. only 3% chance.
+
+double s
+
+# Swirl lessons
+
+- T confidence intervals
+- hypothesis testing
+- p values
+https://github.com/DataScienceSpecialization/courses/
+
+# T confidence intervals
+
+| So the mean and variance of the standardized normal are fixed and known. Now we'll
+| define the t statistic which looks a lot like the Z. It's defined as
+| t=(X'-mu)/(s/sqrt(n)). Like the Z statistic, the t is centered around 0. The only
+| difference between the two is that the population std deviation, sigma, in Z is
+| replaced by the sample standard deviation in the t. So the distribution of the t
+| statistic is independent of the population mean and variance. Instead it depends on
+| the sample size n.
+
+| As a result, for t distributions, the formula for computing a confidence interval is
+| similar to what we did in the last lesson. However, instead of a quantile for a
+| normal distribution we use a quantile for a t distribution. So the formula is Est +/-
+| t-quantile *std error(Est). The other distinction, which we mentioned before, is that
+| we'll use the sample standard deviation when we estimate the standard error of Est.
+
+
+| As df increases, the t distribution gets more like a standard normal, so it's
+| centered around 0. Also, the t assumes that the underlying data are iid Gaussian so
+| the statistic (X' - mu)/(s/sqrt(n)) has n-1 degrees of freedom.
+
+| So the t-interval is defined as X' +/- t_(n-1)*s/sqrt(n) where t_(n-1) is the
+| relevant quantile. The t interval assumes that the data are iid normal, though
+| it is robust to this assumption and works well whenever the distribution of the
+| data is roughly symmetric and mound shaped.
+
+| Although it's pretty great, the t interval isn't always applicable. For skewed
+| distributions, the spirit of the t interval assumptions (being centered around
+| 0) are violated. There are ways of working around this problem (such as taking
+| logs or using a different summary like the median).
+
+
+| For highly discrete data, like binary, intervals other than the t are
+| available.
+
+| However, paired observations are often analyzed using the t interval by taking
+| differences between the observations. We'll show you what we mean now.
+
+| To clarify, we've defined some variables for you, namely g1 and g2. These are
+| two 10-long vectors, respectively holding the results of the 10 patients for
+| each of the two drugs. Look at the range of g1 using the R command range.
+
+> range(g1)
+[1] -1.6  3.7
+
+| Keep working like that and you'll get there!
+
+  |==================================                                            |  43%
+| So g1 values go from -1.6 to 3.7. Now look at the range of g2. We see that the
+| ranges of both groups are relatively large.
+
+> range(g2)
+[1] -0.1  5.5
+
+| You are really on a roll!
+
+  |===================================                                           |  45%
+| Now let's look at the pairwise difference. We can take advantage of R's
+| componentwise subtraction of vectors and create the vector of difference by
+| subtracting g1 from g2. Do this now and put the result in the variable
+| difference.
+
+
+| Type difference <- g2-g1 at the command prompt.
+
+> difference <- g2 - g1
+
+| All that practice is paying off!
+
+  |====================================                                          |  46%
+| Now use the R function mean to find the average of difference.
+
+> mean(difference)
+[1] 1.58
+
+| Nice work!
+
+  |=====================================                                         |  47%
+| See how much smaller the mean difference in this paired data is compared to the
+| group variations?
+
+...
+
+  |======================================                                        |  49%
+| Now use the R function sd to find the standard deviation of difference and put
+| the result in the variable s.
+
+> s <- sd(difference)
+
+| You nailed it! Good job!
+
+  |=======================================                                       |  50%
+| Now recall the formula for finding the t confidence interval, X' +/-
+| t_(n-1)*s/sqrt(n). Make the appropriate substitutions to find the 95%
+| confidence intervals for the average difference you just computed. We've stored
+| that average difference in the variable mn for you to use here. Remember to use
+| the R construct c(-1,1) for the +/- portion of the formula and the R function
+| qt with .975 and n-1 degrees of freedom for the quantile portion. Our data size
+| is 10.
+
+
+> mn + c(-1, 1)*qt(.975, 9)*s/sqrt(10)
+[1] 0.7001142 2.4598858
+
+| That's correct!
+
+  |========================================                                      |  51%
+| This says that with probability .95 the average difference of effects (between
+| the two drugs) for an individual patient is between .7 and 2.46 additional
+| hours of sleep.
+
+| We could also just have used the R function t.test with the argument difference
+| to get this result. (You can use the default values for all the other
+| arguments.) As with the other R test functions, this returns a lot of
+| information. Since all we're interested in at the moment is the confidence
+| interval we can pick this off with the construct x$conf.int. Try this now.
+
+> t.test(g2 - g1)$conf.int
+[1] 0.7001142 2.4598858
+attr(,"conf.level")
+[1] 0.95
+
+
+```{r}
+#show 4 different calls to t.test
+#display as 4 long array
+rbind(
+  mn + c(-1, 1) * qt(.975, n-1) * s / sqrt(n),
+  as.vector(t.test(difference)$conf.int),
+  as.vector(t.test(g2, g1, paired = TRUE)$conf.int),
+  as.vector(t.test(extra ~ I(relevel(group, 2)), paired = TRUE, data = sleep)$conf.int)
+)
+
+```
+
+
+
+
+
+| We now present methods, using t confidence intervals, for comparing independent
+| groups.
+
+| Suppose that we want to compare the mean blood pressure between two groups in a
+| randomized trial. We'll compare those who received the treatment to those who
+| received a placebo. Unlike the sleep study, we cannot use the paired t test
+| because the groups are independent and may have different sample sizes.
+
+| So our goal is to find a 95% confidence interval of the difference between two
+| population means. Let's represent this difference as mu_y - mu_x. How do we do
+| this? Recall our formula X' +/- t_(n-1)*s/sqrt(n).
+
+ First we need a sample mean, but we have two, X' and Y', one from each group.
+| It makes sense that we'd have to take their difference (Y'-X') as well, since
+| we're looking for a confidence interval that contains the difference mu_y-mu_x.
+| Now we need to specify a t quantile. Suppose the groups have different sizes
+| n_x and n_y.
+
+ The only term remaining is the standard error which for the single group is
+| s/sqrt(n). Let's deal with the numerator first. Our interval will assume (for
+| now) a common variance s^2 across the two groups. We'll actually pool variance
+| information from the two groups using a weighted sum. (We'll deal with the more
+| complicated situation later.)
+
+| We call the variance estimator we use the pooled variance. The formula for it
+| requires two variance estimators (in the form of the standard deviation), S_x
+| and S_y, one for each group. We multiply each by its respective degrees of
+| freedom and divide the sum by the total number of degrees of freedom. This
+| weights the respective variances; those coming from bigger samples get more
+| weight.
+
+ Now recall we're calculating the standard error term which for the single group
+| case was s/sqrt(n). We've got the numerator done, by pooling the sample
+| variances. How do we handle the 1/sqrt(n) portion? We can simply add 1/n_x and
+| 1/n_y and take the square root of the sum. Then we MULTIPLY this by the sample
+| variance to complete the estimate of the standard error.
+
+| Now we'll plug in some numbers from the slides based on an example from
+| Rosner's book Fundamentals of Biostatistics, a very good, if heavy, reference
+| book. We want to compare blood pressure from two independent groups.
+
+| The first is a group of 8 oral contraceptive users and the second is a group of
+| 21 controls. The two means are X'_{oc}=132.86 and X'_{c}=127.44, and the two
+| sample standard deviations are s_{oc}= 15.34 and s_{c}= 18.23. Let's first
+| compute the numerator of the pooled sample variance by weighting the sum of the
+| two by their respective sample sizes. Recall the formula
+| (n_x-1)(S_x)^2+(n_y-1)(S_y)^2 and fill in the values to create a variable sp.
+
+| Now to find the 95% confidence interval. Recall our basic formula X' +/-
+| t_(n-1)*s/sqrt(n) and all the changes we need to make for working with two
+| independent samples. We'll plug in the difference of the sample means for X'
+| and our variable ns for the degrees of freedom when finding the t quantile. For
+| the standard error, we multiply sp by the square root of the sum 1/n_{oc} +
+| 1/n_{c}. The values for this problem are X'_{oc}=132.86 and X'_{c}=127.44,
+| n_{oc}=8 and n_{c}=21. Be sure to use the R construct c(-1,1) for the +/-
+| portion and the R function qt with the correct percentile and degrees of
+| freedom.
+
+> 132.86 - 127.44 + c(-1, 1) * qt(.975, ns) * sp * sqrt(1/8 + 1/21)
+[1] -9.521097 20.361097
+
+| Notice that 0 is contained in this 95% interval. That means that you can't rule
+| out that the means of the two groups are equal since a difference of 0 is in
+| the interval.
+
+
+
+
+| Getting tired? Let's revisit the sleep problem and instead of looking at the
+| data as paired over 10 subjects we'll look at it as two independent sets each
+| of size 10. Recall the data is stored in the two vectors g1 and g2; we've also
+| stored the difference between their means in the variable md.
+
+...
+
+  |=============================================================                 |  78%
+| Let's compute the sample pooled variance and store it in the variable sp.
+| Recall that this is the sqrt(weighted sums of sample variances/deg of freedom).
+| The weight of each is the sample size-1. Use the R function var to compute the
+| variances of g1 and g2. The degrees of freedom is 10+10-2 = 18.
+
+
+sp <- sqrt(9*var(g1)+9*var(g2)/18)
+
+| Not quite! Try again. Or, type info() for more options.
+
+| Type sp <- sqrt((9*var(g1)+9*var(g2))/18) at the command prompt.
+
+> sp <- sqrt((9*var(g1)+9*var(g2))/18)
+
+| Excellent work!
+
+  |==============================================================                |  79%
+| Now the last term of the formula, the standard error of the mean difference, is
+| simply sp times the square root of the sum 1/10 + 1/10. Find the 95% t
+| confidence interval of the mean difference of the two groups g1 and g2.
+| Substitute md and sp into the formula you used above.
+
+> md + c(-1, 1) * qt(.975, 18) * sp * sqrt(1/10+1/10)
+[1] -0.203874  3.363874
+
+| Keep working like that and you'll get there!
+
+  |===============================================================               |  80%
+| We can check this manual calculation against the R function t.test. Since we
+| subtracted g1 from g2, be sure to place g2 as your first argument and g1 as
+| your second. Also make sure the argument paired is FALSE and var.equal is TRUE.
+| We only need the confidence interval so use the construct x$conf.  Do this now.
+
+> t.test(g2 - g1, paired = FALSE, var.equal = TRUE)$conf
+[1] 0.7001142 2.4598858
+attr(,"conf.level")
+[1] 0.95
+
+| Nice try, but that's not exactly what I was hoping for. Try again. Or, type
+| info() for more options.
+
+| Type t.test(g2,g1,paired=FALSE,var.equal=TRUE)$conf at the command prompt.
+
+> t.test(g2,g1, paired = FALSE, var.equal = TRUE)$conf
+[1] -0.203874  3.363874
+attr(,"conf.level")
+[1] 0.95
+
+| Pretty cool that it matches, right? Note that 0 is again in this 95% interval
+| so you can't reject the claim that the two groups are the same. (Recall that
+| this is the opposite of what we saw with paired data.) Let's run t.test again,
+| this time with paired=TRUE and see how different the result is. Don't specify
+| var.equal and look only at the confidence interval.
+
+> t.test(g2, g1, paired = TRUE)$conf
+[1] 0.7001142 2.4598858
+attr(,"conf.level")
+[1] 0.95
+
+| Keep up the great work!
+
+  |=================================================================             |  83%
+| Just as we saw when we ran t.test on our vector, difference! See how the
+| interval excludes 0? This means the groups when paired have much different
+| averages.
+
+
+
+
+| Now let's talk about calculating confidence intervals for two groups which have
+| unequal variances. We won't be pooling them as we did before.
+
+
+| In this case the formula for the interval is similar to what we saw before,
+| Y'-X' +/- t_df * SE, where as before Y'-X' represents the difference of the
+| sample means. However, the standard error SE and the quantile t_df are
+| calculated differently from previous methods. Here SE is the square root of the
+| sum of the squared standard errors of the two means, (s_1)^2/n_1 + (s_2)^2/n_2
+| .
+
+ When the underlying X and Y data are iid normal and the variances are
+| different, the normalized statistic we started this lesson with,
+| (X'-mu)/(s/sqrt(n)), doesn't follow a t distribution. However, it can be
+| approximated by a t distribution if we set the degrees of freedom
+| appropriately.
+
+The formula for the degrees of freedom is a complicated fraction that no one
+| remembers.  The numerator is the SQUARE of the sum of the squared standard
+| errors of the two sample means. Each has the form s^2/n. The denominator is the
+| sum of two terms, one for each group. Each term has the same form. It is the
+| standard error of the mean raised to the fourth power divided by the sample
+| size-1. More precisely, each term looks like (s^4/n^2)/(n-1). We use this df to
+| find the t quantile.
+
+|======================================================================        |  89%
+| Here's the formula. You might have to stretch the plot window to get it
+| displayed more clearly.
+
+...
+
+  |=======================================================================       |  91%
+| Let's plug in the numbers from the blood pressure study to see how this works.
+| Recall we have two groups, the first with size 8 and X'_{oc}=132.86 and
+| s_{oc}=15.34 and the second with size 21 and X'_{c}=127.44 and s_{c}=18.23.
+
+...
+
+  |========================================================================      |  92%
+| Let's compute the degrees of freedom first. Start with the numerator. It's the
+| square of the sum of two terms. Each term is of the form s^2/n. Do this now and
+| put the result in num. Our numbers were 15.34 with size 8 and 18.23 with size
+| 21.
+
+> num <- (15.34^/8 + 18.23^2/21)^2
+Error: unexpected '/' in "num <- (15.34^/"
+> num <- (15.34^2/8 + 18.23^2/21)^2
+
+| That's the answer I was looking for.
+
+  |=========================================================================     |  93%
+| Now the denominator. This is the sum of two terms. Each term has the form
+| s^4/n^2/(n-1). These look a little different than the form displayed but
+| they're equivalent. Put the result in the variable den. Our numbers were 15.34
+| with size 8 and 18.23 with size 21.
+
+> den <- 15.34^4/8^2/7 + 18.23^4/21^2/20
+
+| All that practice is paying off!
+
+  |==========================================================================    |  95%
+| Now divide num by den and put the result in mydf.
+
+> mydf <- num/den
+
+| Excellent job!
+
+  |===========================================================================   |  96%
+| Now with the R function qt(.975,mydf) compute the 95% t interval. Recall the
+| formula. X'_{oc}-X'_{c} +/- t_df * SE. Recall that SE is the square root of the
+| sum of the squared standard errors of the two means, (s_1)^2/n_1 + (s_2)^2/n_2
+| . Again our numbers are the following. X'_{oc}=132.86 s_{oc}=15.34 and n_{oc}=8
+| .  X'_{c}=127.44 s_{c}=18.23 and n_{c}=21.
+
+> 132.86 - 127.44 + c(-1, 1) * qt(.975, mydf) * sqrt(15.34^2/8 + 18.23^2/21)
+[1] -8.913327 19.753327
+
+| You are really on a roll!
+
+  |============================================================================  |  97%
+| Don't worry about these nasty calculations. R makes things a lot easier. If you
+| call t.test with var.equal set to FALSE, then R calculates the degrees of
+| freedom for you. You don't have to memorize the formula.
+
+...
+
+  |============================================================================= |  99%
+| Congrats! You've concluded this rather t-dious lesson on all things t related -
+| statistics, distributions, intervals. Hope you're not too teed off!
+
+
+# Hypothesis testing
+
+| An important concept in hypothesis testing is the NULL hypothesis, usually
+| denoted as H_0. This is the hypothesis that represents the status_quo and is
+| assumed true. It's a baseline against which you're testing alternative
+| hypotheses, usually denoted by H_a. Statistical evidence is required to reject
+| H_0 in favor of the research or alternative hypothesis.
+
+ We'll consider the motivating example from the slides. A respiratory
+| disturbance index (RDI) of more than 30 events / hour is considered evidence of
+| severe sleep disordered breathing (SDB). Suppose that in a sample of 100
+| overweight subjects with other risk factors for SDB at a sleep clinic, the mean
+| RDI (X') was 32 events / hour with a standard deviation (s) of 10 events /
+| hour.
+
+...
+
+  |===                                                                     |   5%
+| We want to test the null hypothesis H_0 that mu = 30. Our alternative
+| hypothesis H_a is mu>30. Here mu represents the hypothesized population mean
+| RDI.
+
+...
+
+  |====                                                                    |   6%
+| So we have two competing hypotheses, H_0 and H_a, of which we'll have to pick
+| one (using statistical evidence). That means we have four possible outcomes
+| determined by what really is (the truth) and which hypothesis we accept based
+| on our data. Two of the outcomes are correct and two are errors.
+
+| We distinguish between these two errors. A Type I error REJECTS a TRUE null
+| hypothesis H_0 and a Type II error ACCEPTS a FALSE null hypothesis H_0.
+
+| Since there's some element of uncertainty in questions concerning populations,
+| we deal with probabilities. In our hypothesis testing we'll set the probability
+| of making errors small. For now we'll focus on Type I errors, rejecting a
+| correct hypothesis.
+
+| As in the slides, we'll consider an American court of law. The null hypothesis
+| is that the defendant is innocent. If an innocent man is convicted what type of
+| error is this?
+
+1: Type II
+2: Type I
+
+Selection: 1
+
+| Give it another try.
+
+| You're rejecting a true null hypothesis. Recall that a Type II error accepts a
+| false null hypothesis.
+
+1: Type I
+2: Type II
+
+Selection: 1
+
+
+| You might send the innocent man to jail by rejecting H_0. Suppose a guilty
+| person is not convicted. What type of error is this?
+
+1: Type I
+2: Type II
+
+Selection: 2
+
+| You are amazing!
+
+Back to sleep (example)! A reasonable strategy would reject the null hypothesis
+| if our sample mean X' was larger than some constant C. We choose C so that the
+| probability of a Type I error, alpha, is .05 (or some other favorite constant).
+| Many scientific papers use .05 as a standard level of rejection.
+
+...
+
+  |===============                                                         |  20%
+| This means that alpha, the Type I error rate, is the probability of rejecting
+| the null hypothesis when, in fact, it is correct. We don't want alpha too low
+| because then we would never reject the null hypothesis even if it's false.
+
+...
+
+  |================                                                        |  22%
+| Recall that the standard error of a sample mean is given by the formula
+| s/sqrt(n). Recall in our sleep example we had a sample of 100 subjects, our
+| mean RDI (X') was 32 events / hour with a standard deviation (s) of 10 events /
+| hour. What is the standard error of the mean in this example?
+
+> 10/sqrt(100)
+[1] 1
+
+| Keep up the great work!
+
+  |================                                                        |  23%
+| Under H_0, X' is normally distributed with mean mu=30 and variance 1. (We're
+| estimating the variance as the square of the standard error which in this case
+| is 1.) We want to choose the constant C so that the probability that X is
+| greater than C given H_0 is 5%. That is, P(X > C| H_0) is 5%. Sound familiar?
+
+...
+
+  |=================                                                       |  24%
+| Here's a plot to show what we mean. The shaded portion represents 5% of the
+| area under the curve and those X values in it are those for which the
+| probability that X>C is 5%.
+
+...
+
+  |==================                                                      |  25%
+| The shaded portion represents 5% of the area under this normal density curve.
+| Which expression represents the smallest value X for which the area is shaded,
+| assuming this is standard normal?
+
+1: rnorm(.95)
+2: qnorm(.95)
+3: qt(.95,99)
+4: dnorm(.95)
+
+Selection: 2
+
+| Nice work!
+
+  |===================                                                     |  27%
+| The 95th percentile of a standard normal distribution is 1.645 standard
+| deviations from the mean, so in our example we have to set C to be 1.645
+| standard deviations MORE than our hypothesized mean of 30, that is, C = 30 +
+| 1.645 * 1 = 31.645 (recall that the variance and standard deviation equalled
+| 1).
+
+...
+
+  |====================                                                    |  28%
+| This means that if our OBSERVED (sample) mean X' >= C, then it's only a 5%
+| chance that a random draw from this N(30,1) distribution is larger than C.
+
+...
+
+  |=====================                                                   |  29%
+| Recall that our observed mean X' is 32 which is greater than C=31.645, so it
+| falls in that 5% region. What do we do with H_0?
+
+1: give it another chance
+2: reject it
+3: fail to reject it
+
+Selection: 2
+
+| You nailed it! Good job!
+
+  |======================                                                  |  30%
+| So the rule "Reject H_0 when the sample mean X' >= 31.645" has the property
+| that the probability of rejecting H_0 when it is TRUE is 5% given the model of
+| this example - hypothesized mean mu=30, variance=1 and n=100.
+
+
+
+Instead of computing a constant C as a cutpoint for accepting or rejecting the
+| null hypothesis, we can simply compute a Z score, the number of standard
+| deviations the sample mean is from the hypothesized mean. We can then compare
+| it to quantile determined by alpha.
+
+...
+
+  |=======================                                                 |  33%
+| How do we do this? Compute the distance between the two means (32-30) and
+| divide by the standard error of the mean, that is (s/sqrt(n)).
+
+...
+
+  |========================                                                |  34%
+| What is the Z score for this example? Recall the Z score is X'-mu divided by
+| the standard error of the mean. In this example X'=32, mu=30 and the standard
+| error is 10/sqrt(100)=1.
+
+> (32-30)/1
+[1] 2
+
+| Nice work!
+
+  |=========================                                               |  35%
+| The Z score is 2. The quantile is 1.645, so since 2>1.645. What do we do with
+| H_0?
+
+1: reject it
+2: fail to reject it
+3: give it another chance
+
+Selection: 1
+
+| Excellent job!
+
+
+| Finally, let's consider the alternative hypothesis H_a that mu is simply not
+| equal to mu_0, the mean hypothesized by the null hypothesis H_0.  We would
+| reject H_0 (and accept H_a) when our sample mean is significantly different
+| than mu_0, that is, either less than OR greater than mu_0.
+
+H_a mu != mu_0 demek icin double sided confidence interval test uygulamalisin.
+H_a mu > mu_0 demek icin tek tarafli 95% confidence interval test uygulamalisin. tersi icin de ayni sekilde 5% conf interv.
+
+
+
+Notice that if we reject H_0, either it was FALSE (and hence our model is wrong
+| and we are correct to reject it) OR H_0 is TRUE and we have made an error (Type
+| I). The probability of this is 5%.
+
+
+
+We have not fixed the probability of a type II error (accepting H_0 when it is
+| false), which we call beta. The term POWER refers to the quantity 1-beta and it
+| represents the probability of rejecting H_0 when it's false. This is used to
+| determine appropriate sample sizes in experiments.
+
+
+Note that so far we've been talking about NORMAL distributions and implicitly
+| relying on the CENTRAL LIMIT THEOREM (CLT).
+
+What is the value of the test statistic (X'-mu)/(s/sqrt(n)) with sample size
+| 16?
+
+> (32 - 30)/(10/sqrt(16))
+[1] 0.8
+
+| All that practice is paying off!
+
+  |=============================================                           |  63%
+| How many degrees of freedom do we have with a sample size of 16?
+
+> 15
+[1] 15
+
+| Your dedication is inspiring!
+
+  |==============================================                          |  64%
+| Under H_0, the probability that the test statistic is larger than the 95th
+| percentile of the t distribution is 5%. Use the R function qt with the
+| arguments .95 and the correct number of degrees of freedom to find the
+| quantile.
+
+> qt(.95, 15)
+[1] 1.75305
+
+| You nailed it! Good job!
+
+  |===============================================                         |  65%
+| So the test statistic (.8) is less than 1.75, the 95th percentile of the t
+| distribution with 15 df. This means that our sample mean (32) does not fall
+| within the region of rejection since H_a was that mu>30.
+
+
+So fs has 1078 rows and 2 columns. The columns, fheight and sheight, contain
+| the heights of a father and his son. Obviously there are 1078 such pairs. We
+| can run t.test on this data in one of two ways. First, we can run it with just
+| one argument, the difference between the heights, say fs$sheight-fs$fheight. OR
+| we can run it with three arguments, the two heights plus the paired argument
+| set to TRUE. Run t.test now using whichever way you prefer.
+
+> t.test(fs$sheight, fs$fheight, paired = TRUE)
+
+	Paired t-test
+
+data:  fs$sheight and fs$fheight
+t = 11.789, df = 1077, p-value < 2.2e-16
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ 0.8310296 1.1629160
+sample estimates:
+mean of the differences 
+              0.9969728 
+
+
+| All that hard work is paying off!
+
+  |=========================================================               |  80%
+| The test statistic is what?
+
+1: 0.9969728
+2: .8310296
+3: 2.2e-16
+4: 11.7885
+
+Selection: 4
+
+| You got it right!
+
+  |==========================================================              |  81%
+| So the test statistic is 11.79 which is quite large so we REJECT the null
+| hypothesis that the true mean of the difference was 0 (if you ran the test on
+| the difference sheight-fheight) or that the true difference in means was 0 (if
+| you ran the test on the two separate but paired columns).
+
+...
+
+  |===========================================================             |  82%
+| The test statistic tell us what?
+
+*1: the number of estimated std errors between the sample and hypothesized means*
+2: the true mean
+3: the true variance
+4: the sample mean
+
+Selection: 1
+
+| You are really on a roll!
+
+  |============================================================            |  83%
+| We can test this by multiplying the t statistic (11.7885) by the standard
+| deviation of the data divided by the square root of the sample size.
+| Specifically run 11.7885 * sd(fs$sheight-fs$fheight)/sqrt(1078).
+
+
+
+
+ Note the 95% confidence interval, 0.8310296 1.1629160, returned by t.test. It
+| does not contain the hypothesized population mean 0 so we're pretty confident
+| we can safely reject the hypothesis. This tells us that either our hypothesis
+| is wrong or we're making a mistake (Type 1) in rejecting it.
+
+
+If you set alpha to some value (say .05) and ran many tests checking
+| alternative hypotheses against H_0, that mu=mu_0, the set of all possible
+| values for which you fail to reject H_0 forms the (1-alpha)% (that is 95%)
+| confidence interval for mu_0.
+
+...
+
+  |================================================================        |  89%
+| Similarly, if a (1-alpha)% interval contains mu_0, then we fail to reject H_0.
+
+
+Finally, we note that a 2-sided test would mean that our alternative hypothesis
+| is that p is not equal to .5, and it's not obvious how to do this with a
+| binomial distribution. Don't worry, though, because the next lesson on p-values
+| will make this clearer. It's interesting that for discrete distributions such
+| as binomial and Poisson, inverting 2-sided tests is how R calculates exact
+| tests. (It doesn't rely on the CLT.)
+
+
+## P values
+
+
+| The question motivating p-values is this. Given that we have some null
+| hypothesis concerning our data (for example, its mean), how unusual or extreme
+| is the sample value we get from our data? Is our test statistic consistent with
+| our hypothesis? So there are, implicitly, three steps we have to take to answer
+| these types of questions.
+
+
+| Your comparison tells you how "extreme" the test value is toward the
+| alternative hypothesis. The p-value is the probability under the null
+| hypothesis of obtaining evidence as or more extreme than your test statistic
+| (obtained from your observed data) in the direction of the alternative
+| hypothesis.
+
+| So if the p-value (probability of seeing your test statistic) is small, then
+| one of two things happens. EITHER H_0 is true and you have observed a rare
+| event (in this unusual test statistic) OR H_0 is false. Let's go through an
+| example.
+
+
+| Suppose that you get a t statistic of 2.5 with 15 df testing H_0, (that mu =
+| mu_0) versus an alternative H_a (that mu > mu_0). We want to find the
+| probability of getting a t statistic as large as 2.5.
+
+...
+
+  |===================                                                     |  26%
+| R can help us! We can use the R function pt, the distribution function of the t
+| distribution. This function returns one of two probabilities, EITHER the
+| probability of X > q (if lower.tail is FALSE) OR X <= q (if lower.tail is
+| TRUE), where q is a quantile argument. Here we'll set q=2.5, df=15,
+| lower.tail=FALSE since H_a says that mu>mu_0. We have to gauge the extremity in
+| the direction of H_a. Run this now.
+
+> pt(q = 2.5, df = 15, lower.tail = FALSE)
+[1] 0.0122529
+
+| This result tells us that, if H_0 were true, we would see this large a test
+| statistic with probability 1% which is rather a small probability.
+
+
+
+Now let's find the p value associated with this example. As before, we'll use
+| pnorm. But this time we'll set the lower.tail argument to FALSE. This gives us
+| the probability of X exceeding the test statistic, that is, the area under the
+| curve to the right of test statistic. Try it now with the test statistic value
+| 2.
+
+> pnorm(q = 2, lower.tail = FALSE)
+[1] 0.02275013
+
+| Keep up the great work!
+
+  |=========================================                               |  57%
+| This tells us that the attained level of significance is about 2%.
+
+| For a two sided hypothesis test, you have to double the smaller of the two
+| one-sided p values. We'll see an example of this shortly. Most software assumes
+| a two-sided test and automatically doubles the p value.
+
+ Now for the two-sided test. Recall the binomial example from the last lesson -
+| the family with 8 children, 7 of whom are girls. You want to test H_0, that
+| p=.5, where p is the probability of a girl (like a fair coin flip). H_a is that
+| p is not equal to .5. It's either greater or less than .5.
+
+ This is a two-sided test. First we find the probability of having at least i
+| girls, for i running from 0 to 8. We have a vector of these probabilities,
+| mybin. Look at it now.
+
+ mybin
+[1] 1.00000000 0.99609375 0.96484375 0.85546875 0.63671875 0.36328125 0.14453125
+[8] 0.03515625 0.00390625
+
+| That's a job well done!
+
+  |==================================================                      |  69%
+| The second last value shows us that the probability of having at least 7 girls
+| (out of 8 children) is .035, assuming that genders are equally likely (p=.5).
+| You can verify this with the R function pbinom, with the arguments 6, size=8,
+| prob=.5, and lower.tail=FALSE. (This last yields the probability that X>6.) Try
+| this now.
+
+  |=========================================================               |  79%
+| For the other side of the test we want the probability that X<=7, again out of
+| a sample of size 8 with probability .5. Again, we use pbinom, this time with an
+| argument of 7 and lower.tail=TRUE. Try this now.
+
+> pbinom(7, prob = .5, lower.tail = TRUE)
+Error in pbinom(7, prob = 0.5, lower.tail = TRUE) : 
+  argument "size" is missing, with no default
+> pbinom(7, size = 8, prob = .5, lower.tail = TRUE)
+[1] 0.9960938
+
+| That's a job well done!
+
+  |==========================================================              |  81%
+| So it's pretty likely (probability .996) that out of 8 children you'll have at
+| most 7 girls. The p value of this two sided test is 2*the smaller of the two
+| one-sided values. In this case the lower value is .035, so 2*.035 is the
+| p-value for this two-sided test.
+
+
+
+
+
+
+
+
+| Now a final example using a Poisson distribution. Remember that this is
+| discrete and it involves counts or rates of counts. The example from the slides
+| involves rates of infections in a hospital.
+
+| Suppose that the hospital has an infection rate of 10 infections per 100
+| person/days at risk. This is a rate of 0.1.  Assume that an infection rate of
+| 0.05 is the benchmark. This is our alpha level, recognize it? With this model,
+| could the observed rate (.1) be larger than the benchmark 0.05 by chance or
+| does it indicate a problem?
+
+...
+
+  |===============================================================         |  88%
+| In other words, H_0 says that lambda = 0.05 so lambda_0 * 100 = 5, and H_a says
+| that lambda > 0.05. Is H_0 true and our observed rate (.1) is just a fluke OR
+| should we reject H_0 ?
+
+| As before, R has the handy function ppois, which returns probabilities for
+| Poisson distributions. We want the probability of seeing at least 9 infections
+| using a lambda value of 5 and lower.tail=FALSE. As when we used pbinom we have
+| to use 9 as the argument since we're looking for a probability of a value
+| greater than the argument. Try this now.
+
+> ppois(9, lambda = 5, lower.tail = FALSE)
+[1] 0.03182806
+
+
+ We see a probability of about .03. Should we reject or fail to reject H_0?
+| (Remember those helpful pictures with shaded areas. Smaller areas mean smaller
+| probabilities and vice versa.)
+
+
+
+
+
+
+
